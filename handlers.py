@@ -142,7 +142,7 @@ def get_admin_results_kb():
 
 @router.message(F.text == "📊 Natijalar")
 async def ask_admin_top(message: types.Message):
-    if message.from_user.id != ADMIN_ID: return 
+    if str(message.from_user.id) != str(ADMIN_ID): return 
     await message.answer(
         "📊 <b>Natijalarni qanday ko'rinishda chiqarmoqchisiz?</b>\n"
         "Tanlovni amalga oshiring 👇", 
@@ -207,9 +207,13 @@ async def join_callback(callback: types.CallbackQuery):
 @router.message(F.text.contains("#konkursx"))
 @router.channel_post(F.text.contains("#konkursx"))
 async def start_konkurs_handler(message: types.Message):
-    reset_contest() # Eski ovozlarni o'chirish
+    # Faqat admin ishlata olishi uchun tekshiruv (string tipida)
+    if str(message.from_user.id) != str(ADMIN_ID): 
+        return
+        
+    reset_contest()
     bot_info = await message.bot.get_me()
-    candidates = []
+    candidates = [] # Boshida bo'sh ro'yxat
     
     battle_text = (
         "🏆 <b>KONKURS BOSHLANDI!</b> 🥳\n\n"
