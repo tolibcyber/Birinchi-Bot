@@ -61,9 +61,20 @@ async def start_handler(message: types.Message, command: CommandObject):
         conn = sqlite3.connect('bot_data.db')
         cursor = conn.cursor()
         try:
+            # AVVAL TEKSHIRAMIZ: Foydalanuvchi umuman biron marta ovoz berganmi?
+            cursor.execute("SELECT candidate_username FROM votes WHERE user_id = ?", (user_id,))
+            already_voted = cursor.fetchone()
+
+            if already_voted:
+                # Agar allaqachon ovoz bergan bo'lsa, xabar beramiz va to'xtatamiz
+                await message.answer("🚫 Siz allaqachon ovoz bergansiz! Faqat bir marta ovoz berish imkoniyati mavjud.")
+                return
+
+            # Agar ovoz bermagan bo'lsa, bazaga yozamiz
             cursor.execute("INSERT INTO votes (user_id, candidate_username) VALUES (?, ?)", (user_id, candidate))
             cursor.execute("UPDATE candidates SET votes_count = votes_count + 1 WHERE username = ?", (candidate,))
             conn.commit()
+            
             await message.answer(f"✅ Rahmat! @{candidate} uchun ovozingiz muvaffaqiyatli qabul qilindi.")
             
             if LAST_BATTLE_POST["message_id"]:
@@ -76,11 +87,14 @@ async def start_handler(message: types.Message, command: CommandObject):
                         reply_markup=get_battle_kb(candidates, bot_info.username)
                     )
                 except: pass
-        except sqlite3.IntegrityError:
-            await message.answer("🚫 Siz allaqachon ovoz bergansiz!")
-        finally: conn.close()
-        return
 
+        except sqlite3.Error as e:
+            # Bazaviy xatoliklar uchun (masalan, baza yopiq bo'lsa)
+            await message.answer("⚠️ Tizimda xatolik yuz berdi, keyinroq urinib ko'ring.")
+        finally: 
+            conn.close()
+        return
+    
     # ASOSIY MENYU XABARI
     start_txt = (
         f"👋 <b>Salom {message.from_user.first_name}!</b>\n\n"
