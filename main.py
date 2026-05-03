@@ -32,7 +32,7 @@ async def main():
     init_db()
     
     # 2. Bot tokenini shu yerga qo'yasan
-    TOKEN = "8668974814:AAGa1NIw5FZ-74iJq94r1DfHzd0TDVNyOPk"
+    TOKEN = "8668974814:AAEpZSQT6O5IAdaeuyQSXOCE19sIolJJdOI"
     bot = Bot(token=TOKEN)
     dp = Dispatcher()
     
