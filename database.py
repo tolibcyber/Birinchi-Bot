@@ -73,3 +73,13 @@ def get_top_candidates(limit=10):
     results = cursor.fetchall()
     conn.close()
     return results
+def reset_contest():
+    """Yangi konkurs boshlashdan oldin hamma ovozlarni va ishtirokchilarni tozalaydi"""
+    import sqlite3
+    conn = sqlite3.connect('bot_data.db')
+    cursor = conn.cursor()
+    # Hamma jadvallarni tozalaymiz
+    cursor.execute("DELETE FROM candidates")
+    cursor.execute("DELETE FROM votes")
+    conn.commit()
+    conn.close()
