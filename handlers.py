@@ -132,44 +132,64 @@ async def admin_panel_handler(callback: types.CallbackQuery):
         parse_mode="HTML"
     )
 
-# --- NATIJALAR QISMI ---
-def get_admin_results_kb():
-    buttons = [
-        [InlineKeyboardButton(text="🔝 TOP 5", callback_data="show_top_5")],
-        [InlineKeyboardButton(text="🔝 TOP 10", callback_data="show_top_10")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
+# --- NATIJALAR QISMI (ESKI VARIANTGA QAYTISH) ---
 @router.message(F.text == "📊 Natijalar")
-async def ask_admin_top(message: types.Message):
-    if str(message.from_user.id) != str(ADMIN_ID): return 
-    await message.answer(
-        "📊 <b>Natijalarni qanday ko'rinishda chiqarmoqchisiz?</b>\n"
-        "Tanlovni amalga oshiring 👇", 
-        parse_mode="HTML",
-        reply_markup=get_admin_results_kb()
-    )
+async def show_results_handler(message: types.Message):
+    # Admin ekanligingizni tekshirish
+    if str(message.from_user.id) != str(ADMIN_ID): 
+        return 
 
-@router.callback_query(lambda c: c.data.startswith('show_top_'))
-async def process_admin_results(callback_query: types.CallbackQuery):
-    limit = int(callback_query.data.split('_')[2])
-    results = get_top_candidates(limit)
+    # Avvalgidek TOP 5 natijani birdaniga olish
+    results = get_top_candidates(5)
     
     if not results:
-        await callback_query.answer("Hozircha ishtirokchilar yo'q!", show_alert=True)
+        await message.answer("📊 <b>Hozircha ishtirokchilar yo'q!</b>", parse_mode="HTML")
         return
 
-    header = f"📊 <b>TOP {limit} NATIJALAR</b>\n🏆 <b>Eng kuchli kurashchilar</b>🥳\n\n"
+    header = f"📊 <b>TOP 5 NATIJALAR</b>\n🏆 <b>Eng kuchli kurashchilar</b> 🥳\n\n"
     body = ""
-    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
     
     for i, (username, count) in enumerate(results):
         medal = medals[i] if i < len(medals) else "👤"
         body += f"<blockquote>{medal} @{username} — <b>{count} ta ovoz</b> </blockquote>\n\n"
 
-    await callback_query.message.edit_text(header + body + "🎁 <b>Konkurs davom etmoqda...</b>", parse_mode="HTML")
-    await callback_query.answer()
+    await message.answer(header + body + "🎁 <b>Konkurs davom etmoqda...</b>", parse_mode="HTML")
 
+# --- KANALGA POST (#konkursx) ---
+@router.message(F.text.contains("#konkursx"))
+@router.channel_post(F.text.contains("#konkursx"))
+async def start_konkurs_handler(message: types.Message):
+    # Kanaldan yozganda xato bermasligi uchun himoya (boyagi NoneType xatosi uchun)
+    if message.from_user:
+        if str(message.from_user.id) != str(ADMIN_ID):
+            return
+            
+    reset_contest()
+    bot_info = await message.bot.get_me()
+    candidates = [] 
+    
+    battle_text = (
+        "🏆 <b>KONKURS BOSHLANDI!</b> 🥳\n\n"
+        "❕ <b>Shartlar:</b> Quyidagi kanalga obuna bo'lish va "
+        "o'z yaqinlaringizdan ovoz yig'ish.\n\n"
+        "<blockquote>🚫 <b>Diqqat:</b> Agar ovoz beruvchi kanaldan chiqib ketsa, uning ovozi avtomatik tarzda bekor qilinadi!</blockquote>\n\n"
+        "➕ <b>Konkursga qo'shilish uchun pastdagi tugmani bosing:</b> 👇"
+    )
+    
+    sent_post = await message.answer(
+        battle_text, 
+        reply_markup=get_battle_kb(candidates, bot_info.username), 
+        parse_mode="HTML"
+    )
+    
+    LAST_BATTLE_POST["chat_id"] = sent_post.chat.id
+    LAST_BATTLE_POST["message_id"] = sent_post.message_id
+    
+    try: 
+        await message.delete()
+    except: 
+        pass
 # --- QATNASHISH TUGMASI ---
 @router.callback_query(F.data == "join_contest")
 async def join_callback(callback: types.CallbackQuery):
