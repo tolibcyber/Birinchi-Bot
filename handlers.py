@@ -3,8 +3,9 @@ from aiogram import Router, types, F
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from keyboard import *
-from database import add_user, get_candidates, get_top_5, ADMIN_ID, get_setting, set_setting, get_stats
+from database import add_user, get_candidates, get_top_candidates, ADMIN_ID, get_setting, set_setting, get_stats
 
 router = Router()
 LAST_BATTLE_POST = {"chat_id": None, "message_id": None}
@@ -175,20 +176,48 @@ async def enik_benik_handler(callback: types.CallbackQuery):
     await callback.answer()
     await callback.message.answer("🎮 Enik-Benik o'yini tez kunda qo'shiladi...")
 
-@router.callback_query(F.data == "results")
-async def show_results_handler(callback: types.CallbackQuery):
-    if str(callback.from_user.id) != str(ADMIN_ID):
-        return await callback.answer("🚫 Natijalarni faqat admin ko'ra oladi!", show_alert=True)
+@router.message(F.text == "📊 Natijalar")
+async def ask_admin_top(message: types.Message):
+    # ADMIN_ID o'rniga o'zingni raqamingni yozishni unutma
+    if message.from_user.id != ADMIN_ID: 
+        return 
     
-    await callback.answer()
-    top_list = get_top_5()
-    if not top_list:
-        return await callback.message.answer("📊 Hozircha ishtirokchilar yo'q!")
+    await message.answer(
+        "📊 <b>Natijalarni qanday ko'rinishda chiqarmoqchisiz?</b>\n"
+        "Tanlovni amalga oshiring 👇", 
+        parse_mode="HTML",
+        reply_markup=get_admin_results_kb()
+    )
+
+@router.callback_query(lambda c: c.data.startswith('show_top_'))
+async def process_admin_results(callback_query: types.CallbackQuery):
+    # Callbackdan 5 yoki 10 raqamini ajratib olamiz
+    limit = int(callback_query.data.split('_')[2])
     
-    res_txt = "<b>Top 5 natijalar:</b>\n\n"
-    for i, (name, count) in enumerate(top_list, 1):
-        res_txt += f"{i}. @{name} — {count} ovoz\n"
-    await callback.message.answer(res_txt, parse_mode="HTML")
+    # database.py dagi yangi funksiyamizni chaqiramiz
+    results = get_top_candidates(limit)
+    
+    if not results:
+        await callback_query.answer("Hozircha ishtirokchilar yo'q!", show_alert=True)
+        return
+
+    header = f"📊 <b>TOP {limit} NATIJALAR</b>\n🏆 <b>Eng kuchli kurashchilar</b>🥳\n\n"
+    
+    body = ""
+    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    
+    for i, (username, count) in enumerate(results):
+        medal = medals[i] if i < len(medals) else "👤"
+        # Rasmdagi chiroyli dizayn (blockquote)
+        body += f"<blockquote>{medal} @{username} — <b>{count} ta ovoz</b> </blockquote>\n\n"
+
+    footer = "🎁 <b>Konkurs davom etmoqda...</b>"
+    
+    await callback_query.message.edit_text(
+        header + body + footer, 
+        parse_mode="HTML"
+    )
+    await callback_query.answer()
 
 # --- QATNASHISH TUGMASI (TO'G'RILANDI) ---
 @router.callback_query(F.data == "join_contest")
@@ -228,6 +257,15 @@ async def join_callback(callback: types.CallbackQuery):
     except sqlite3.IntegrityError:
         await callback.answer("😊 Siz allaqachon ro'yxatdasiz.", show_alert=True)
     finally: conn.close()
+
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+def get_admin_results_kb():
+    buttons = [
+        [InlineKeyboardButton(text="🔝 TOP 5", callback_data="show_top_5")],
+        [InlineKeyboardButton(text="🔝 TOP 10", callback_data="show_top_10")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 # --- KANALGA POST YUBORISH (#konkursx) ---
 @router.message(F.text.contains("#konkursx"))
