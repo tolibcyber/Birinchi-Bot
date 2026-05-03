@@ -207,14 +207,17 @@ async def join_callback(callback: types.CallbackQuery):
 @router.message(F.text.contains("#konkursx"))
 @router.channel_post(F.text.contains("#konkursx"))
 async def start_konkurs_handler(message: types.Message):
-    # Faqat admin ishlata olishi uchun tekshiruv (string tipida)
-    if str(message.from_user.id) != str(ADMIN_ID): 
-        return
-        
+    # Bu qism xabarni kim yuborganini aqlli usulda tekshiradi:
+    if message.from_user: # Agar odam yozsa (guruhda yoki botga)
+        if str(message.from_user.id) != str(ADMIN_ID):
+            return
+    # Agar kanaldan kelsa (message.from_user yo'q bo'lsa), bot xato bermasdan pastga o'tib ketadi.
+            
     reset_contest()
     bot_info = await message.bot.get_me()
-    candidates = [] # Boshida bo'sh ro'yxat
+    candidates = [] 
     
+    # Sening original matnlaring (qisqartirilmagan):
     battle_text = (
         "🏆 <b>KONKURS BOSHLANDI!</b> 🥳\n\n"
         "❕ <b>Shartlar:</b> Quyidagi kanalga obuna bo'lish va "
@@ -222,15 +225,20 @@ async def start_konkurs_handler(message: types.Message):
         "<blockquote>🚫 <b>Diqqat:</b> Agar ovoz beruvchi kanaldan chiqib ketsa, uning ovozi avtomatik tarzda bekor qilinadi!</blockquote>\n\n"
         "➕ <b>Konkursga qo'shilish uchun pastdagi tugmani bosing:</b> 👇"
     )
+    
     sent_post = await message.answer(
         battle_text, 
         reply_markup=get_battle_kb(candidates, bot_info.username), 
         parse_mode="HTML"
     )
+    
     LAST_BATTLE_POST["chat_id"] = sent_post.chat.id
     LAST_BATTLE_POST["message_id"] = sent_post.message_id
-    try: await message.delete()
-    except: pass
+    
+    try: 
+        await message.delete()
+    except: 
+        pass
 
 # --- QOLGAN STANDART HANDLERLAR ---
 @router.callback_query(F.data == "check_sub")
