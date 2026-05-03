@@ -63,3 +63,13 @@ def get_top_5():
     return res
 
 init_db()
+def get_top_candidates(limit=10):
+    """Eng ko'p ovoz olgan nomzodlarni limit bo'yicha qaytaradi"""
+    import sqlite3
+    conn = sqlite3.connect('bot_data.db')
+    cursor = conn.cursor()
+    # Ovozlar soni bo'yicha kamayish tartibida saralaymiz
+    cursor.execute("SELECT username, votes_count FROM candidates ORDER BY votes_count DESC LIMIT ?", (limit,))
+    results = cursor.fetchall()
+    conn.close()
+    return results
